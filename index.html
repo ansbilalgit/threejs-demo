@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Three.js </title>
+    <style>
+
+    </style>
+    <script src="./js/three.min.js"></script>
+    <script>
+        "use strict";
+
+        var scene, camera, renderer;
+
+        var canvas;
+
+
+        var axleModel;
+        var tankModel;
+        var diskworldModel;
+
+        var currentModel;
+
+
+        var tankAxle1, tankAxle2;
+        var diskworldAxle1, diskworldAxle2;
+        var growingTree;
+        var tankRotator;
+
+
+        var animating = false;
+
+        var sun;
+        var redLight;
+        var greenLight;
+        var blueLigth;
+
+        var isRed = true;
+        var isGreen = true;
+        var isBlue = true;
+
+        var treeArray = [];
+
+        function createWorld() {
+            renderer.setClearColor(0x19E5E5);
+            scene = new THREE.Scene();
+
+
+            camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 1, 30);
+            camera.position.z = 15;
+            var viewpointLight = new THREE.DirectionalLight(0xffffff, 1);
+            viewpointLight.position.set(0, 0, 1);
+            scene.add(viewpointLight);
+
+
+            var wheel = new THREE.Mesh(
+                new THREE.TorusGeometry(0.75, 0.25, 16, 32),
+                new THREE.MeshLambertMaterial({
+                    color: 0x000000
+                })
+            );
+            var yellow = new THREE.MeshPhongMaterial({
+                color: 0xffff00,
+                specular: 0x101010,
+                shininess: 16
+            });
+
+            var silver = new THREE.MeshPhongMaterial({
+                color: 0xf1f1f1,
+                specular: 0x101010,
+                shininess: 16
+            });
+            var cylinder = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.5, 1, 32, 1),
+                silver
+            );
+            cylinder.scale.set(0.15, 1.2, 0.15);
+            wheel.add(cylinder.clone());
+            cylinder.rotation.z = Math.PI / 3;
+            wheel.add(cylinder.clone());
+            cylinder.rotation.z = -Math.PI / 3;
+            wheel.add(cylinder.clone());
+
+            axleModel = new THREE.Object3D();
+            cylinder.scale.set(0.2, 4.3, 0.2);
+            cylinder.rotation.set(Math.PI / 2, 0, 0);
+            axleModel.add(cylinder);
+            wheel.position.z = 2;
+            axleModel.add(wheel.clone());
+            wheel.position.z = -2;
+            axleModel.add(wheel);
+
+
+            tankModel = new THREE.Object3D();
+            var tankBox = new THREE.MeshPhongMaterial({
+                color: 0x355e3b,
+                specular: 0x080808,
+                shininess: 8,
+                shading: THREE.FlatShading
+            });
+            var body = new THREE.Mesh(new THREE.BoxGeometry(6, 1.2, 3), tankBox);
+            body.position.y = 0.6;
+            var hood = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 2.8), tankBox);
+            hood.position.set(0.5, 1.4, 0);
+            var muzzleBox = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1, 1.7), tankBox);
+            muzzleBox.position.set(1, 2, 0);
+
+            var muzzle = new THREE.Mesh(new THREE.BoxGeometry(7, 0.5, 0.4), tankBox);
+            muzzle.position.set(-2.5, 2.2, 0);
+
+
+            var headlight1 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), yellow);
+            headlight1.scale.set(0.1, 0.25, 0.25);
+            headlight1.position.set(-3, 0.6, -1);
+            var headlight2 = headlight1.clone();
+            headlight1.position.set(-3, 0.6, 1);
+            tankAxle1 = axleModel.clone();
+            tankAxle1.position.x = -2.5;
+            tankAxle2 = axleModel.clone();
+            tankAxle2.position.x = 2.5;
+            tankModel.add(tankAxle1);
+            tankModel.add(tankAxle2);
+            tankModel.add(body);
+            tankModel.add(hood);
+            tankModel.add(muzzleBox)
+            tankModel.add(muzzle);
+            tankModel.add(headlight1);
+            tankModel.add(headlight2);
+
+
+            diskworldModel = new THREE.Object3D();
+            var ground = new THREE.Mesh( // The base of the world; everything else is on the top of this cylinder.
+                new THREE.CylinderGeometry(5.5, 5.5, 0.5, 64, 1),
+                new THREE.MeshLambertMaterial({
+                    color: 0x00CC55
+                })
+            );
+            ground.position.y = -0.3; // Puts top of cylinder just below the xz-plane.
+            diskworldModel.add(ground);
+            var road = new THREE.Mesh(
+                new THREE.RingGeometry(3.3, 4.8, 64, 1),
+                new THREE.MeshLambertMaterial({
+                    color: 0x36454f
+                })
+            );
+
+            var waterRing = new THREE.Mesh(
+                new THREE.RingGeometry(4.9, 5.5, 70, 1),
+                new THREE.MeshLambertMaterial({
+                    color: 0x1fcecb
+                })
+            );
+            road.rotation.x = -Math.PI / 2;
+            waterRing.rotation.x = -Math.PI / 2;
+            diskworldModel.add(road);
+            diskworldModel.add(waterRing);
+            var diskCar = tankModel.clone();
+            diskworldAxle1 = diskCar.children[0];
+            diskworldAxle2 = diskCar.children[1];
+            diskCar.scale.set(0.3, 0.3, 0.3);
+            diskCar.position.set(0, 0.3, -4);
+            tankRotator = new THREE.Object3D();
+            tankRotator.add(diskCar);
+            diskworldModel.add(tankRotator);
+
+
+            var tree = new THREE.Object3D();
+            var trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.2, 1, 16, 1),
+                new THREE.MeshLambertMaterial({
+                    color: 0x885522
+                })
+            );
+            trunk.position.y = 0.5;
+            var leaves = new THREE.Mesh(
+                new THREE.CylinderGeometry(0, .7, 2, 16, 3),
+                new THREE.MeshPhongMaterial({
+                    color: 0x00BB00,
+                    specular: 0x002000,
+                    shininess: 5
+                })
+            );
+            leaves.position.y = 2;
+            tree.add(trunk);
+            tree.add(leaves);
+
+            tree.scale.set(0.1, 0.1, 0.1);
+            tree.position.set(-1.5, 0, 2);
+            growingTree = tree;
+
+            let t = growingTree.clone();
+            diskworldModel.add(t);
+            treeArray.push(t)
+
+            growingTree.position.set(-.1, 0, 5.2);
+            t = growingTree.clone();
+            treeArray.push(t)
+            diskworldModel.add(t)
+
+            growingTree.position.set(1, 0, -5)
+            t = growingTree.clone()
+            treeArray.push(t)
+            diskworldModel.add(t);
+
+            growingTree.position.set(-3.6, 0, -3.6)
+            t = growingTree.clone()
+            treeArray.push(t)
+            diskworldModel.add(t);
+
+            growingTree.position.set(5.3, 0, 0)
+            t = growingTree.clone()
+            treeArray.push(t)
+            diskworldModel.add(t);
+
+            growingTree.position.set(2, 0, 2)
+            t = growingTree.clone()
+            treeArray.push(t)
+            diskworldModel.add(t);
+
+            axleModel.scale.set(2, 2, 2);
+
+            currentModel = diskworldModel;
+            currentModel.rotation.set(0.2, 0, 0);
+
+
+            var sphere = new THREE.SphereGeometry(0.5, 16, 8);
+
+            sun = new THREE.PointLight(0xFF4500, 4, 100);
+            sun.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({
+                color: 0xFF4500
+            })));
+            sun.position.z = -10;
+            sun.castShadow = true;
+            currentModel.add(sun);
+
+            var light = new THREE.Object3D();
+            var pillar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 1, 8, 1),
+                new THREE.MeshLambertMaterial({
+                    color: 0xf1f1f1
+                })
+            );
+            pillar.position.y = 0.5;
+            var sphere = new THREE.SphereGeometry(0.1, 8, 4);
+            redLight = new THREE.PointLight(0xDC143C, 2, 5)
+            redLight.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({
+                color: 0xDC143C
+            })));
+            redLight.position.y = 1;
+            redLight.castShadow = true;
+            greenLight = new THREE.PointLight(0x7CFC00, 2, 5)
+            greenLight.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({
+                color: 0x7CFC00
+            })));
+            greenLight.position.y = 1;
+            greenLight.castShadow = true;
+
+            blueLigth = new THREE.PointLight(0x1E90FF, 2, 5)
+            blueLigth.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({
+                color: 0x1E90FF
+            })));
+            blueLigth.position.y = 1;
+            blueLigth.castShadow = true;
+
+            light.add(pillar);
+            light.add(redLight);
+
+            light.position.z = -2;
+            currentModel.add(light);
+
+            let newLight = light.clone();
+            newLight.remove(newLight.children[1]);
+            newLight.add(blueLigth)
+            newLight.position.set(2, 0, 0)
+            currentModel.add(newLight);
+
+            let newLight2 = light.clone();
+            newLight2.remove(newLight2.children[1]);
+            newLight2.add(greenLight)
+            newLight2.position.set(-2, 0, 1)
+
+
+            currentModel.add(newLight2);
+
+
+            var tentRoof = new THREE.Mesh(
+                new THREE.CylinderGeometry(0, 1.7, 1, 16, 2),
+                tankBox
+            );
+
+            tentRoof.position.y = 1.5;
+            var tentBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.5, 1.5, 1, 8, 1),
+                tankBox
+            );
+
+            tentBase.position.y = 0.5;
+
+            var tent = new THREE.Object3D();
+            tent.add(tentBase);
+            tent.add(tentRoof)
+
+
+            currentModel.add(tent);
+
+            scene.add(currentModel);
+
+        }
+
+        function render() {
+            if (!isRed) {
+                redLight.intensity = 0
+            } else
+                redLight.intensity = 2;
+            if (!isBlue)
+                blueLigth.intensity = 0;
+            else
+                blueLigth.intensity = 2;
+            if (!isGreen)
+                greenLight.intensity = 0;
+            else
+                greenLight.intensity = 2;
+            renderer.render(scene, camera);
+        }
+
+        function updateForFrame() {
+            if (currentModel == axleModel) {
+                axleModel.rotation.z += 0.05;
+            } else if (currentModel == tankModel) {
+                tankAxle1.rotation.z += 0.05;
+                tankAxle2.rotation.z += 0.05;
+            } else {
+                diskworldAxle1.rotation.z += 0.05;
+                diskworldAxle2.rotation.z += 0.05;
+                let sliderValue = document.getElementById("speedSlider").value;
+                tankRotator.rotation.y += sliderValue / 1000;
+
+                treeArray.forEach(element => {
+                    var treeScale = element.scale.x;
+                    if (treeScale < 1.5) {
+                        treeScale += 0.0005;
+                        element.scale.set(treeScale, treeScale, treeScale);
+                    }
+                });
+
+            }
+
+            var time = Date.now() * 0.0005;
+            sun.position.z = Math.cos(time * 0.3) * 10
+            sun.position.y = Math.sin(time * 0.3) * 8;
+            currentModel;
+
+
+
+
+        }
+
+        function doFrame() {
+            if (animating) {
+                updateForFrame();
+                render();
+                requestAnimationFrame(doFrame);
+            }
+        }
+
+        function doLights() {
+            if (!animating)
+                render();
+        }
+
+
+        function doAnimateCheckbox() {
+            var anim = document.getElementById("animate").checked;
+            if (anim != animating) {
+                animating = anim;
+                if (animating) {
+                    doFrame();
+                }
+            }
+        }
+
+
+        function doRedCheckbox() {
+            var red = document.getElementById("redLight").checked;
+            if (red != isRed) {
+                isRed = red;
+                doLights();
+            }
+        }
+
+        function doGreenCheckbox() {
+            var green = document.getElementById("greenLight").checked;
+            if (green != isGreen) {
+                isGreen = green;
+                doLights();
+            }
+        }
+
+        function doBlueCheckbox() {
+            var blue = document.getElementById("blueLight").checked;
+            if (blue != isBlue) {
+                isBlue = blue;
+                doLights();
+            }
+        }
+
+
+        function doKey(event) {
+            var code = event.keyCode;
+            var rotated = true;
+            switch (code) {
+                case 37:
+                    currentModel.rotation.y -= 0.03;
+                    break; // left arrow
+                case 39:
+                    currentModel.rotation.y += 0.03;
+                    break; // right arrow
+                case 38:
+                    currentModel.rotation.x -= 0.03;
+                    break; // up arrow
+                case 40:
+                    currentModel.rotation.x += 0.03;
+                    break; // down arrow
+                case 33:
+                    currentModel.rotation.z -= 0.03;
+                    break; // page up
+                case 34:
+                    currentModel.rotation.z += 0.03;
+                    break; // page down
+                case 36:
+                    currentModel.rotation.set(0.2, 0, 0);
+                    break; // home
+                default:
+                    rotated = false;
+            }
+            if (rotated) {
+                event.preventDefault();
+                if (!animating) {
+                    render();
+                }
+            }
+        }
+
+
+        function doChangeModel() {
+            var axle = document.getElementById("axle").checked;
+            var tank = document.getElementById("tank").checked
+            var newModel = axle ? axleModel : tank ? tankModel : diskworldModel;
+            if (newModel != currentModel) {
+                scene.remove(currentModel);
+                currentModel = newModel;
+                currentModel.rotation.set(0.2, 0, 0);
+                scene.add(currentModel);
+                if (!animating) {
+                    render();
+                }
+            }
+        }
+
+
+        function init() {
+            try {
+                canvas = document.getElementById("glcanvas");
+                renderer = new THREE.WebGLRenderer({
+                    canvas: canvas,
+                    antialias: true
+                });
+            } catch (e) {
+                document.getElementById("canvas-holder").innerHTML =
+                    "<h3><b>Sorry, WebGL is required but is not available.</b><h3>";
+                return;
+            }
+            document.addEventListener("keydown", doKey, false);
+            document.getElementById("animate").checked = false;
+            document.getElementById("animate").onchange = doAnimateCheckbox;
+            document.getElementById("greenLight").onchange = doGreenCheckbox;
+            document.getElementById("redLight").onchange = doRedCheckbox;
+            document.getElementById("blueLight").onchange = doBlueCheckbox;
+            document.getElementById("diskworld").checked = true;
+            document.getElementById("axle").onchange = doChangeModel;
+            document.getElementById("tank").onchange = doChangeModel;
+            document.getElementById("diskworld").onchange = doChangeModel;
+            createWorld();
+            render();
+        }
+    </script>
+</head>
+
+<body onload="init()">
+
+    <h2>Military camp in Three js</h2>
+
+    <p><b>Use Arrow, PageUp, PageDown, and Home keys to rotate the model.</b></p>
+
+    <p><label><input type="checkbox" id="animate">Animate</label>
+        <label style="margin-left: 80px"><input type="radio" id="axle" name="model">Show Axle</label>
+        <label style="margin-left: 20px"><input type="radio" id="tank" name="model">Show Tank</label>
+        <label style="margin-left: 20px"><input type="radio" id="diskworld" name="model">Show Diskworld</label>
+    </p>
+    <p>
+        <label for="tank speed"> <input type="range" min="1" , max="10" id="speedSlider"> Tank speed </label>
+
+        <label style="margin-left: 20px"><input type="checkbox" id="greenLight" checked>Green Light</label>
+        <label style="margin-left: 20px"><input type="checkbox" id="redLight" checked>Red Light</label>
+        <label style="margin-left: 20px"><input type="checkbox" id="blueLight" checked>Blue Light</label>
+    </p>
+
+    <div id="canvas-holder">
+        <canvas id="glcanvas" width="600" height="600"></canvas>
+    </div>
+
+</body>
+
+</html>
